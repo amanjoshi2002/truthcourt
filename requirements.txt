@@ -18,6 +18,7 @@ google-api-python-client
 google-auth
 google-auth-httplib2
 google-generativeai
+google-genai
 googleapis-common-protos
 grpcio
 grpcio-status
