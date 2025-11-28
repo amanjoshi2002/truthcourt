@@ -159,6 +159,10 @@ def analyze_endpoint():
     return jsonify(result)
 
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
 @app.route('/debates', methods=['GET'])
 def get_debates():
     """Get all debates with optional limit"""
