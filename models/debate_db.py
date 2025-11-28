@@ -3,6 +3,7 @@ import json
 import time
 import os
 from typing import Dict, List
+from datetime import datetime
 
 class DebateDB:
     def __init__(self):
@@ -103,6 +104,10 @@ class DebateDB:
         ''', (debate_id,))
         arguments = cursor.fetchall()
         
+        # Format timestamp to readable date
+        timestamp = debate_row[7]
+        readable_date = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        
         return {
             'id': debate_row[0],
             'message': debate_row[1],
@@ -111,7 +116,8 @@ class DebateDB:
             'evidence': json.loads(debate_row[4]),
             'judge_statement': debate_row[5],
             'source': debate_row[6],
-            'timestamp': debate_row[7],
+            'timestamp': timestamp,
+            'created_at': readable_date,
             'arguments': [
                 {'round': arg[0], 'speaker': arg[1], 'argument': arg[2]} 
                 for arg in arguments

@@ -5,11 +5,21 @@ from utils.gemini_setup import setup_gemini
 from models.ai_lawyer import AILawyer
 from models.judge import Judge
 from models.debate_db import DebateDB
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 # Initialize database
 db = DebateDB()
 
@@ -105,7 +115,30 @@ def analyze_message(message: str):
         "source": "debate"
     }
 
+@app.route('/testanalyze', methods=['POST'])
+def testanalyze_endpoint():
+    """API endpoint to analyze messages"""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.get_json()
+    if 'message' not in data:
+        return jsonify({"error": "Message field is required"}), 400
+    
+    # Extract the actual message text from the request
+    message = data['message']
+    if isinstance(message, dict):
+        if 'text' not in message:
+            return jsonify({"error": "Message must contain 'text' field"}), 400
+        message = message['text']
+    
+    result = analyze_message(message)
+    return jsonify(result)
+
+
+
 @app.route('/analyze', methods=['POST'])
+@limiter.limit("2 per day")  # Max 2 requests per day per IP
 def analyze_endpoint():
     """API endpoint to analyze messages"""
     if not request.is_json:
@@ -124,6 +157,36 @@ def analyze_endpoint():
     
     result = analyze_message(message)
     return jsonify(result)
+
+
+@app.route('/debates', methods=['GET'])
+def get_debates():
+    """Get all debates with optional limit"""
+    try:
+        limit = request.args.get('limit', default=100, type=int)
+        debates = db.get_all_debates(limit=limit)
+        return jsonify({
+            "success": True,
+            "count": len(debates),
+            "debates": debates
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/debates/<int:debate_id>', methods=['GET'])
+def get_debate(debate_id):
+    """Get a specific debate by ID"""
+    try:
+        debate = db.get_debate(debate_id)
+        if debate:
+            return jsonify({
+                "success": True,
+                "debate": debate
+            })
+        else:
+            return jsonify({"error": "Debate not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Modify the main block to work with both direct Python and Gunicorn
 if __name__ == "__main__":
